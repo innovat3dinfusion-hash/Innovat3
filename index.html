@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>innovat3. — 3D Print on Demand</title>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,300;0,400;0,700;0,900;1,800&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --black:#080808;--card:#161616;--border:#272727;
+  --orange:#f97316;--orange2:#fb923c;--orange-dim:rgba(249,115,22,.1);--orange-glow:rgba(249,115,22,.45);
+  --white:#f5f5f0;--muted:#666;--success:#22c55e;
+  --mono:'JetBrains Mono',monospace;--display:'Exo 2',sans-serif;--body:'Rajdhani',sans-serif;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--black);color:var(--white);font-family:var(--body);overflow-x:hidden;cursor:none;}
+
+/* cursor */
+#cur{position:fixed;pointer-events:none;z-index:9999;width:12px;height:12px;border-radius:50%;background:var(--orange);mix-blend-mode:screen;transform:translate(-50%,-50%);transition:width .12s,height .12s;}
+#curR{position:fixed;pointer-events:none;z-index:9998;width:36px;height:36px;border-radius:50%;border:1.5px solid var(--orange);opacity:.4;transform:translate(-50%,-50%);}
+
+/* bg grid */
+.bg-grid{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(249,115,22,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(249,115,22,.03) 1px,transparent 1px);
+  background-size:64px 64px;animation:drift 24s linear infinite;}
+@keyframes drift{to{background-position:64px 64px;}}
+
+/* corner brackets */
+.brk{position:fixed;width:44px;height:44px;pointer-events:none;z-index:3;}
+.brk::before,.brk::after{content:'';position:absolute;background:var(--orange);opacity:.6;}
+.brk::before{width:2px;height:100%;}.brk::after{width:100%;height:2px;}
+.brk.tl{top:14px;left:14px;}.brk.tr{top:14px;right:14px;transform:scaleX(-1);}
+.brk.bl{bottom:14px;left:14px;transform:scaleY(-1);}.brk.br{bottom:14px;right:14px;transform:scale(-1);}
+
+/* =============================================
+   GIZMO ANIMATIONS — the star of the show
+   ============================================= */
+
+/* Hero: smooth bobbing float with slight rotation */
+@keyframes gz-float{
+  0%  {transform:translateY(0px)   rotate(-1.5deg);}
+  25% {transform:translateY(-18px) rotate(1deg);}
+  50% {transform:translateY(-28px) rotate(-0.5deg);}
+  75% {transform:translateY(-14px) rotate(2deg);}
+  100%{transform:translateY(0px)   rotate(-1.5deg);}
+}
+/* Hero: gear glow pulses red<>orange */
+@keyframes gz-glow{
+  0%,100%{filter:drop-shadow(0 0 10px rgba(239,68,68,.5))  drop-shadow(0 32px 64px rgba(249,115,22,.35));}
+  50%    {filter:drop-shadow(0 0 28px rgba(239,68,68,.95)) drop-shadow(0 32px 80px rgba(249,115,22,.7));}
+}
+/* Bounce on click */
+@keyframes gz-bounce{
+  0%  {transform:translateY(0)   scaleY(1);}
+  20% {transform:translateY(-32px) scaleY(1.06);}
+  45% {transform:translateY(-26px) scaleY(.97);}
+  65% {transform:translateY(-6px)  scaleY(.94);}
+  80% {transform:translateY(-2px)  scaleY(1.02);}
+  100%{transform:translateY(0)   scaleY(1);}
+}
+/* Header / footer: nod */
+@keyframes gz-nod{
+  0%,100%{transform:rotate(0deg);}
+  20%{transform:rotate(-10deg) translateY(-4px);}
+  45%{transform:rotate(8deg)  translateY(-2px);}
+  70%{transform:rotate(-5deg) translateY(-3px);}
+}
+/* Sidebar: walk cycle */
+@keyframes gz-walk{
+  0%,100%{transform:translateY(0)   rotate(0deg)  scaleX(1);}
+  20%    {transform:translateY(-14px) rotate(-3deg) scaleX(1);}
+  40%    {transform:translateY(-20px) rotate(-2deg) scaleX(1);}
+  60%    {transform:translateY(-12px) rotate(1deg)  scaleX(1);}
+  80%    {transform:translateY(-5px)  rotate(2deg)  scaleX(1);}
+}
+/* Full spin on click */
+@keyframes gz-spin{
+  0%  {transform:rotate(0deg)   scale(1);}
+  25% {transform:rotate(90deg)  scale(1.12);}
+  50% {transform:rotate(180deg) scale(1);}
+  75% {transform:rotate(270deg) scale(1.12);}
+  100%{transform:rotate(360deg) scale(1);}
+}
+/* Success: excited bounce */
+@keyframes gz-celebrate{
+  0%,100%{transform:translateY(0)   rotate(0deg);}
+  15%    {transform:translateY(-24px) rotate(-8deg);}
+  30%    {transform:translateY(-30px) rotate(8deg);}
+  45%    {transform:translateY(-20px) rotate(-5deg);}
+  60%    {transform:translateY(-28px) rotate(6deg);}
+  75%    {transform:translateY(-16px) rotate(-3deg);}
+  90%    {transform:translateY(-6px)  rotate(2deg);}
+}
+/* Glow pulse beneath hero */
+@keyframes glow-pulse{
+  0%,100%{opacity:.5;transform:translateX(-50%) scale(1);}
+  50%    {opacity:.9;transform:translateX(-50%) scale(1.1);}
+}
+/* Speech bubble */
+@keyframes bubble-in{
+  from{opacity:0;transform:translateY(18px) scale(.85);}
+  to  {opacity:1;transform:translateY(0)    scale(1);}
+}
+@keyframes bubble-float{
+  0%,100%{transform:translateY(0);}
+  50%    {transform:translateY(-8px);}
+}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+@keyframes spin  {to{transform:rotate(360deg);}}
+@keyframes fadein{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+/* Gizmo classes */
+.gz{cursor:pointer;image-rendering:auto;}
+.gz-hero{
+  width:460px;height:auto;
+  transform-origin:bottom center;
+  animation:gz-float 4s ease-in-out infinite, gz-glow 3s ease-in-out infinite;
+}
+.gz-hdr{
+  height:56px;
+  transform-origin:bottom center;
+  animation:gz-nod 3s ease-in-out infinite;
+  filter:drop-shadow(0 4px 16px rgba(249,115,22,.55));
+}
+.gz-side{
+  width:160px;
+  transform-origin:bottom center;
+  animation:gz-walk 2.6s ease-in-out infinite;
+  filter:drop-shadow(0 12px 28px rgba(249,115,22,.32));
+}
+.gz-foot{
+  height:72px;
+  transform-origin:bottom center;
+  animation:gz-nod 4s ease-in-out infinite 1.2s;
+  filter:drop-shadow(0 6px 18px rgba(249,115,22,.4));
+  transition:filter .2s;
+}
+.gz-foot:hover{filter:drop-shadow(0 8px 32px rgba(249,115,22,.8));}
+.gz-succ{
+  width:220px;
+  animation:gz-celebrate 1.4s ease-in-out infinite;
+  filter:drop-shadow(0 24px 56px rgba(249,115,22,.6));
+}
+
+/* =============================================
+   LAYOUT
+   ============================================= */
+header{position:sticky;top:0;z-index:100;background:rgba(8,8,8,.97);backdrop-filter:blur(18px);border-bottom:1px solid var(--border);}
+.hdr{max-width:1280px;margin:0 auto;padding:0 40px;display:flex;align-items:center;justify-content:space-between;height:66px;}
+.hdr-logo{display:flex;align-items:center;gap:12px;}
+.hdr-logo .logo{height:40px;}
+.hdr-brand{font-family:var(--display);font-weight:900;font-size:24px;letter-spacing:-1px;}
+.hdr-brand span{color:var(--orange);}
+.hdr-tag{font-family:var(--mono);font-size:10px;letter-spacing:3px;color:var(--orange);border:1px solid rgba(249,115,22,.4);padding:5px 12px;border-radius:2px;}
+.hdr-right{display:flex;align-items:center;gap:14px;}
+.hdr-live{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;color:var(--muted);}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--success);animation:blink 2s ease-in-out infinite;}
+.prog-bar{height:2px;background:var(--border);}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--orange),var(--orange2));transition:width .4s ease;width:25%;}
+
+.hero{max-width:1280px;margin:0 auto;padding:50px 40px 30px;display:grid;grid-template-columns:1fr 500px;gap:20px;align-items:flex-end;min-height:calc(100vh - 66px);overflow:hidden;}
+.eyebrow{display:flex;align-items:center;gap:10px;margin-bottom:18px;font-family:var(--mono);font-size:10px;color:var(--orange);letter-spacing:3px;text-transform:uppercase;}
+.eyebrow::before{content:'';width:28px;height:2px;background:var(--orange);}
+.hero h1{font-family:var(--display);font-weight:900;font-size:clamp(48px,6vw,90px);line-height:.94;letter-spacing:-2px;margin-bottom:22px;}
+.hero h1 .accent{color:var(--orange);display:block;}
+.hero h1 .thin{font-weight:300;color:var(--muted);display:block;font-style:italic;}
+.hero-sub{font-size:16px;color:var(--muted);line-height:1.8;margin-bottom:32px;max-width:480px;}
+.hs-row{display:flex;flex-wrap:wrap;}
+.hs{display:flex;align-items:center;gap:8px;padding:10px 16px;border:1px solid var(--border);background:var(--card);font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;position:relative;}
+.hs:not(:last-child)::after{content:'\203A';position:absolute;right:-9px;z-index:1;color:var(--orange);font-size:13px;}
+.hs-n{width:18px;height:18px;border-radius:50%;background:var(--orange-dim);border:1px solid var(--orange);display:grid;place-items:center;color:var(--orange);font-size:9px;}
+
+.amb-wrap{position:relative;display:flex;justify-content:center;align-items:flex-end;}
+.amb-glow{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,rgba(249,115,22,.2) 0%,transparent 65%);animation:glow-pulse 3.5s ease-in-out infinite;pointer-events:none;}
+.speech{position:absolute;top:90px;left:-15px;z-index:10;background:var(--card);border:2px solid var(--orange);border-radius:16px 16px 16px 4px;padding:14px 16px;max-width:190px;opacity:0;pointer-events:none;transform:translateY(14px) scale(.88);transition:opacity .3s cubic-bezier(.34,1.56,.64,1), transform .35s cubic-bezier(.34,1.56,.64,1);box-shadow:0 8px 32px rgba(249,115,22,.2);}
+.amb-wrap:hover .speech{opacity:1;transform:translateY(0) scale(1);animation:bubble-float 3.8s ease-in-out infinite;}
+.speech::after{content:'';position:absolute;bottom:-12px;left:16px;width:0;height:0;border-right:10px solid transparent;border-top:12px solid var(--orange);}
+.speech p{font-family:var(--display);font-weight:700;font-size:13px;color:var(--white);line-height:1.5;}
+.speech .hi{color:var(--orange);}
+
+/* form */
+.form-wrap{max-width:1280px;margin:0 auto;padding:0 40px 80px;position:relative;}
+.side-amb{position:absolute;right:-14px;top:40px;z-index:0;}
+.form-card{background:var(--card);border:1px solid var(--border);border-radius:4px;position:relative;overflow:hidden;}
+.form-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--orange),var(--orange2),transparent 80%);}
+.ftabs{display:flex;border-bottom:1px solid var(--border);}
+.ftab{padding:16px 26px;font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--muted);cursor:pointer;border-right:1px solid var(--border);transition:all .2s;display:flex;align-items:center;gap:8px;text-transform:uppercase;}
+.ftab.active{color:var(--orange);background:var(--orange-dim);}
+.ftab:hover:not(.active){color:var(--white);background:rgba(255,255,255,.02);}
+.ftab-n{width:18px;height:18px;border-radius:50%;background:var(--orange-dim);border:1px solid currentColor;display:grid;place-items:center;font-size:9px;}
+.fbody{padding:44px;}
+.panel{display:none;animation:fadein .3s ease;}.panel.active{display:block;}
+.ptitle{margin-bottom:26px;}
+.ptitle h2{font-family:var(--display);font-weight:900;font-size:26px;letter-spacing:-.5px;margin-bottom:4px;}
+.ptitle h2 em{color:var(--orange);font-style:normal;}
+.ptitle p{font-size:14px;color:var(--muted);}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:14px;align-items:end;}
+.sp2{grid-column:1/-1;}
+.fld{display:flex;flex-direction:column;gap:7px;}
+.fld label{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+.fld input,.fld select,.fld textarea{background:#0d0d0d;border:1px solid var(--border);color:var(--white);padding:12px 15px;border-radius:3px;font-family:var(--body);font-size:15px;font-weight:500;outline:none;transition:border-color .2s,box-shadow .2s;width:100%;}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(249,115,22,.1);}
+.fld input::placeholder{color:var(--muted);opacity:.5;}
+.fld textarea{resize:vertical;min-height:88px;}
+.fld select option{background:#111;}
+.unit{font-family:var(--mono);font-size:12px;color:var(--orange);padding:12px 14px;background:#0d0d0d;border:1px solid var(--border);border-radius:3px;white-space:nowrap;align-self:end;}
+.upload{border:2px dashed var(--border);border-radius:4px;padding:52px 24px;text-align:center;cursor:pointer;transition:all .25s;position:relative;background:#0d0d0d;}
+.upload:hover,.upload.drag{border-color:var(--orange);background:var(--orange-dim);}
+.upload input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-ico{width:56px;height:56px;border:2px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px;background:var(--card);transition:border-color .2s;}
+.upload:hover .upload-ico{border-color:var(--orange);}
+.upload h3{font-family:var(--display);font-weight:700;font-size:17px;margin-bottom:6px;}
+.upload p{font-size:13px;color:var(--muted);}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;justify-content:center;}
+.chip{font-family:var(--mono);font-size:10px;padding:5px 11px;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.3);border-radius:2px;color:var(--orange2);display:flex;align-items:center;gap:6px;}
+.chip button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;}
+.matgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;}
+.matcard{border:1px solid var(--border);border-radius:4px;padding:15px 8px;cursor:pointer;transition:all .2s;text-align:center;background:#0d0d0d;}
+.matcard:hover{border-color:var(--orange);}.matcard.sel{border-color:var(--orange);background:var(--orange-dim);}
+.matcard input{display:none;}
+.mat-ic{font-size:22px;display:block;margin-bottom:7px;}
+.mat-nm{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:1px;}
+.mat-ds{font-size:10px;color:var(--muted);margin-top:3px;}
+.mat-pr{font-family:var(--mono);font-size:9px;color:var(--orange);margin-top:4px;}
+.swrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.sw{width:34px;height:34px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;box-shadow:0 2px 8px rgba(0,0,0,.5);}
+.sw.sel{border-color:var(--orange);transform:scale(1.15);}
+.sw-custom{width:34px;height:34px;border-radius:50%;cursor:pointer;border:2px dashed var(--border);display:grid;place-items:center;font-size:15px;background:#0d0d0d;color:var(--muted);transition:all .2s;}
+.sw-custom:hover{border-color:var(--orange);color:var(--orange);}
+.pricebar{background:#0d0d0d;border:1px solid var(--border);border-radius:4px;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;margin-top:24px;}
+.prlbl{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:3px;}
+.prnote{font-size:12px;color:var(--muted);}
+.prval{font-family:var(--display);font-weight:900;font-size:40px;color:var(--orange);letter-spacing:-1px;}
+.form-nav{display:flex;justify-content:space-between;align-items:center;margin-top:30px;}
+.btn-back{padding:12px 24px;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:3px;cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:1px;transition:all .2s;}
+.btn-back:hover{border-color:var(--orange);color:var(--orange);}
+.btn-next{padding:12px 30px;background:var(--orange);border:none;color:#000;border-radius:3px;cursor:pointer;font-family:var(--display);font-weight:900;font-size:15px;letter-spacing:1px;transition:all .2s;display:flex;align-items:center;gap:8px;}
+.btn-next:hover{background:var(--orange2);transform:translateY(-1px);box-shadow:0 8px 28px var(--orange-glow);}
+.btn-submit{width:100%;padding:17px;background:var(--orange);border:none;color:#000;border-radius:3px;cursor:pointer;font-family:var(--display);font-weight:900;font-size:17px;letter-spacing:2px;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;}
+.btn-submit:hover{background:var(--orange2);transform:translateY(-1px);box-shadow:0 12px 40px var(--orange-glow);}
+.btn-submit .spin{display:none;width:20px;height:20px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;}
+.btn-submit.loading span{display:none;}.btn-submit.loading .spin{display:block;}
+.divider{border:none;border-top:1px solid var(--border);margin:26px 0;}
+.success-panel{display:none;padding:60px 44px;text-align:center;animation:fadein .5s ease;}
+.success-panel.show{display:block;}
+.succ-title{font-family:var(--display);font-weight:900;font-size:42px;letter-spacing:-1px;margin-bottom:10px;}
+.succ-title em{color:var(--orange);font-style:normal;}
+.succ-sub{color:var(--muted);font-size:15px;line-height:1.8;}
+.succ-ref{font-family:var(--mono);color:var(--orange);font-size:13px;margin-top:12px;}
+.wa-cta{display:inline-flex;align-items:center;gap:10px;padding:13px 26px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:3px;color:var(--success);text-decoration:none;font-family:var(--mono);font-size:10px;letter-spacing:1px;margin-top:22px;transition:all .2s;}
+.wa-cta:hover{background:rgba(34,197,94,.2);}
+footer{border-top:1px solid var(--border);padding:0 40px;}
+.foot-inner{max-width:1280px;margin:0 auto;padding:20px 0;display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;}
+footer p{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;}
+
+.social-links{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;}
+.social-btn{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;text-decoration:none;border:1px solid var(--border);padding:7px 14px;border-radius:2px;transition:all .2s;letter-spacing:1px;}
+.social-btn svg{width:13px;height:13px;flex-shrink:0;}
+.social-btn.yt{color:#ff0000;border-color:rgba(255,0,0,.3);}.social-btn.yt:hover{background:rgba(255,0,0,.1);border-color:rgba(255,0,0,.6);}
+.social-btn.fb{color:#1877f2;border-color:rgba(24,119,242,.3);}.social-btn.fb:hover{background:rgba(24,119,242,.1);border-color:rgba(24,119,242,.6);}
+.social-btn.tt{color:#ee1d52;border-color:rgba(238,29,82,.3);}.social-btn.tt:hover{background:rgba(238,29,82,.1);border-color:rgba(238,29,82,.6);}
+.wa-foot{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--success);text-decoration:none;border:1px solid rgba(34,197,94,.3);padding:7px 14px;border-radius:2px;transition:all .2s;letter-spacing:1px;}.wa-foot:hover{background:rgba(34,197,94,.1);}
+@media(max-width:960px){
+  .hero{grid-template-columns:1fr;min-height:auto;padding:32px 20px;}
+  .gz-hero{width:260px;}.speech{left:50%;transform:translateX(-50%);top:10px;}
+  .form-wrap{padding:0 20px 60px;}.fbody{padding:22px 16px;}
+  .matgrid{grid-template-columns:repeat(3,1fr) !important;}.g2,.g4{grid-template-columns:1fr;}
+  .hdr{padding:0 16px;}.side-amb{display:none;}footer{padding:0 16px;}
+  /* mobile touch fixes */
+  body{cursor:auto!important;}
+  #cur,#curR{display:none!important;}
+  .fld input,.fld select,.fld textarea{
+    font-size:16px!important; /* prevents iOS zoom on focus */
+    padding:14px 15px!important;
+    min-height:48px;
+  }
+  .btn-next,.btn-back,.btn-submit{
+    min-height:52px;
+    font-size:16px!important;
+    padding:14px 24px!important;
+  }
+  .ftab{padding:14px 16px;font-size:9px;}
+  .matcard{padding:12px 6px;}
+  .sw{width:38px;height:38px;}
+}
+
+/* contact split layout */
+.contact-split{display:grid;grid-template-columns:1fr 1fr;gap:0;min-height:420px;margin:-44px;overflow:hidden;}
+.contact-img-wrap{position:relative;overflow:hidden;}
+.contact-img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block;transition:transform .6s ease;}
+.contact-img-wrap:hover .contact-img{transform:scale(1.04);}
+.contact-img-overlay{position:absolute;bottom:0;left:0;right:0;padding:24px 20px;background:linear-gradient(to top,rgba(8,8,8,.92) 0%,rgba(8,8,8,.5) 60%,transparent 100%);}
+.contact-img-tag{font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--orange);border:1px solid rgba(249,115,22,.4);display:inline-block;padding:4px 10px;border-radius:2px;margin-bottom:8px;}
+.contact-img-caption{font-size:13px;color:rgba(245,245,240,.8);line-height:1.6;font-family:var(--body);}
+.contact-fields{padding:44px;display:flex;flex-direction:column;gap:16px;justify-content:center;background:var(--card);}
+.contact-fields .ptitle{margin-bottom:4px;}
+.contact-fields .fld{margin-bottom:0;}
+@media(max-width:960px){
+  .contact-split{grid-template-columns:1fr;margin:-22px -16px;}
+  .contact-img-wrap{height:240px;}
+  .contact-fields{padding:24px 16px;}
+}
+
+/* contact split layout */
+.contact-split{display:grid;grid-template-columns:1fr 1fr;gap:0;min-height:440px;margin:-44px;overflow:hidden;border-radius:4px;}
+.contact-img-wrap{position:relative;overflow:hidden;}
+.contact-img{width:100%;height:100%;object-fit:cover;object-position:center 20%;display:block;transition:transform .6s ease;}
+.contact-img-wrap:hover .contact-img{transform:scale(1.04);}
+.contact-img-overlay{position:absolute;bottom:0;left:0;right:0;padding:28px 22px;background:linear-gradient(to top,rgba(8,8,8,.95) 0%,rgba(8,8,8,.6) 55%,transparent 100%);}
+.contact-img-tag{font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--orange);border:1px solid rgba(249,115,22,.4);display:inline-block;padding:4px 10px;border-radius:2px;margin-bottom:10px;}
+.contact-img-caption{font-size:13px;color:rgba(245,245,240,.8);line-height:1.6;}
+.contact-fields{padding:44px;display:flex;flex-direction:column;gap:14px;justify-content:center;}
+.contact-fields .ptitle{margin-bottom:6px;}
+@media(max-width:960px){
+  .contact-split{grid-template-columns:1fr;margin:-22px -16px;}
+  .contact-img-wrap{height:260px;}
+  .contact-fields{padding:22px 16px;}
+}
+
+
+}
+@media(min-width:961px) and (max-width:1100px){
+  .gallery-slide{min-width:calc(50% - 1px);}
+}
+
+@media(max-width:960px){
+  .btn-next{width:100%;justify-content:center;margin-top:16px;}
+  .form-nav{flex-direction:column-reverse;gap:10px;}
+}
+
+.btn-finish{
+  width:100%;margin-top:24px;padding:18px 24px;
+  background:linear-gradient(135deg,var(--orange),var(--orange2));
+  border:none;color:#000;border-radius:4px;cursor:pointer;
+  font-family:var(--display);font-weight:900;font-size:18px;letter-spacing:2px;
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  box-shadow:0 8px 32px rgba(249,115,22,.4);
+  transition:all .2s;
+}
+.btn-finish:hover,.btn-finish:active{
+  transform:translateY(-2px);
+  box-shadow:0 14px 40px rgba(249,115,22,.6);
+  background:linear-gradient(135deg,var(--orange2),var(--orange));
+}
+.btn-finish svg{flex-shrink:0;}
+@media(max-width:960px){
+  .btn-finish{font-size:16px;padding:20px 24px;}
+}
+
+
+/* toggle switch */
+.toggle-wrap{display:inline-flex;align-items:center;}
+.toggle-track{width:38px;height:20px;background:var(--border);border-radius:20px;position:relative;cursor:pointer;transition:background .2s;}
+.toggle-track.on{background:var(--orange);}
+.toggle-thumb{width:16px;height:16px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.4);}
+.toggle-track.on .toggle-thumb{left:20px;}
+/* multi-colour slots */
+.mc-slot{
+  width:52px;height:52px;border-radius:4px;cursor:pointer;
+  border:2px solid rgba(255,255,255,.15);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:11px;color:rgba(0,0,0,.5);
+  font-weight:700;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+.mc-slot:hover{border-color:var(--orange);transform:scale(1.08);}
+.mc-slot.active{border-color:var(--orange);border-width:3px;}
+
+</style>
+<body>
+<div id="cur"></div><div id="curR"></div>
+<div class="bg-grid"></div>
+<div class="brk tl"></div><div class="brk tr"></div><div class="brk bl"></div><div class="brk br"></div>
+
+<header><div class="hdr">
+  <div class="hdr-logo">
+    <img src="logo.png" alt="innovat3" class="logo">
+    <div class="hdr-brand">innovat<span>3</span>.</div>
+  </div>
+  <div class="hdr-tag">3D PRINT ON DEMAND</div>
+  <div class="hdr-right">
+    <div class="hdr-live"><div class="sdot"></div>ACCEPTING ORDERS</div>
+  </div>
+</div><div class="prog-bar"><div class="prog-fill" id="progFill"></div></div></header>
+
+<main>
+<section class="hero">
+  <div>
+    <div class="eyebrow">SUPPORTING ID3AS</div>
+    <h1>BRING YOUR<br><span class="accent">ID3AS</span><span class="thin">TO LIFE.</span></h1>
+    <p class="hero-sub">Upload your design, set dimensions, choose your material. Quoted within 24 hours, printed with precision. Proudly South African &#x1F1FF;&#x1F1E6;</p>
+    <div class="hs-row">
+      <div class="hs"><span class="hs-n">1</span>CONTACT</div>
+      <div class="hs"><span class="hs-n">2</span>FILES</div>
+      <div class="hs"><span class="hs-n">3</span>SPECS</div>
+      <div class="hs"><span class="hs-n">4</span>SUBMIT</div>
+    </div>
+  </div>
+  <div class="amb-wrap">
+    <div class="amb-glow"></div>
+    <div class="speech" id="bubble"><p><span class="hi">Let&#39;s print your next big idea!</span> &#x2699;&#xFE0F;</p></div>
+    <img src="gizmo.png" alt="Gizmo" class="gz gz-hero" id="heroGz">
+  </div>
+</section>
+
+<section class="form-wrap">
+  <div class="side-amb"><img src="gizmo.png" alt="" class="gz gz-side" aria-hidden="true"></div>
+  <div class="form-card" id="formCard">
+
+    <div class="ftabs">
+      <div class="ftab active" id="t1"><span class="ftab-n">1</span>CONTACT</div>
+      <div class="ftab" id="t2"><span class="ftab-n">2</span>FILES</div>
+      <div class="ftab" id="t3"><span class="ftab-n">3</span>SPECS</div>
+      <div class="ftab" id="t4"><span class="ftab-n">4</span>CONFIRM</div>
+    </div>
+
+    <div class="fbody">
+
+      <!-- STEP 1: CONTACT -->
+      <div class="panel active" id="p1">
+        <div class="contact-split">
+          <div class="contact-img-wrap">
+            <img src="city.jpg" alt="Gizmo in the city" class="contact-img">
+            <div class="contact-img-overlay">
+              <div class="contact-img-tag">&#x1F4F1; ORDER FROM ANYWHERE</div>
+              <p class="contact-img-caption">Fill in your details and we&rsquo;ll handle the rest.</p>
+            </div>
+          </div>
+          <div class="contact-fields">
+            <div class="ptitle"><h2>Your <em>Contact</em> Details</h2><p>We&rsquo;ll send your quote and updates here</p></div>
+            <div class="fld"><label>Full Name *</label><input type="text" id="c-name" placeholder="e.g. Sipho Nkosi"></div>
+            <div class="fld"><label>Email Address *</label><input type="email" id="c-email" placeholder="you@example.com"></div>
+            <div class="fld"><label>WhatsApp / Phone *</label><input type="tel" id="c-phone" placeholder="+27 82 000 0000"></div>
+            <div class="fld"><label>Company / Project</label><input type="text" id="c-company" placeholder="Optional"></div>
+            <div class="fld"><label>Delivery City / Area</label><input type="text" id="c-city" placeholder="e.g. Johannesburg, Sandton"></div>
+            <button class="btn-finish" onclick="goStep(2)" ontouchend="event.preventDefault();goStep(2)">
+              <span>NEXT: Upload Files</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: FILES -->
+      <div class="panel" id="p2">
+        <div class="ptitle"><h2>Upload Your <em>Files</em></h2><p>STL, OBJ, 3MF, STEP or reference images</p></div>
+        <div class="fld">
+          <div class="upload" id="dz">
+            <input type="file" id="fi" multiple accept=".stl,.obj,.3mf,.step,.stp,.png,.jpg,.jpeg,.pdf,image/*" onchange="handleFiles(this.files)">
+            <div class="upload-ico">&#x2B21;</div>
+            <h3>Drop files here or click to browse</h3>
+            <p>STL &middot; OBJ &middot; 3MF &middot; STEP &middot; PNG &middot; JPG &middot; PDF</p>
+            <div class="chips" id="fileChips"></div>
+          </div>
+        </div>
+        <div class="fld" style="margin-top:18px"><label>No file? Describe your idea</label><textarea id="c-idea" placeholder="Describe shape, function, references&hellip;"></textarea></div>
+        <div class="fld" style="margin-top:14px">
+          <label>&#x1F517; Link to print file (MakerWorld, Thingiverse, Google Drive&hellip;)</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="url" id="c-link" placeholder="https://makerworld.com/en/models/...">
+            <a id="linkPreview" href="#" target="_blank" style="display:none;padding:11px 14px;background:var(--orange-dim);border:1px solid rgba(249,115,22,.4);border-radius:3px;color:var(--orange);font-family:var(--mono);font-size:10px;white-space:nowrap;text-decoration:none;">&#x1F517; OPEN</a>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px;">MakerWorld &middot; Thingiverse &middot; Printables &middot; Cults3D &middot; Google Drive</div>
+        </div>
+        <button class="btn-finish" onclick="goStep(3)" ontouchend="event.preventDefault();goStep(3)" style="margin-top:24px;">
+          <span>&#x2713; DONE &mdash; NEXT: Print Specs</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+        <div class="form-nav" style="margin-top:10px;"><button class="btn-back" onclick="goStep(1)" ontouchend="event.preventDefault();goStep(1)">&larr; BACK</button></div>
+      </div>
+
+      <!-- STEP 3: SPECS -->
+      <div class="panel" id="p3">
+        <div class="ptitle"><h2>Print <em>Specifications</em></h2><p>Exact size and material</p></div>
+
+        <div style="margin-bottom:22px">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:12px;text-transform:uppercase;">Dimensions &amp; Quantity</div>
+          <div class="g4">
+            <div class="fld"><label>Width (mm)</label><input type="number" id="s-w" placeholder="100" min="1" oninput="calcPrice()"></div>
+            <div class="fld"><label>Depth (mm)</label><input type="number" id="s-d" placeholder="100" min="1" oninput="calcPrice()"></div>
+            <div class="fld"><label>Height (mm)</label><input type="number" id="s-h" placeholder="100" min="1" oninput="calcPrice()"></div>
+            <div class="unit">mm</div>
+          </div>
+          <div class="g2" style="margin-top:14px">
+            <div class="fld"><label>Quantity</label><input type="number" id="s-qty" value="1" min="1" oninput="calcPrice()"></div>
+            <div class="fld"><label>Layer Resolution</label>
+              <select id="s-res" onchange="calcPrice()">
+                <option value="draft">0.3mm &mdash; Draft (Fast)</option>
+                <option value="standard" selected>0.2mm &mdash; Standard</option>
+                <option value="fine">0.1mm &mdash; Fine Detail</option>
+                <option value="ultra">0.05mm &mdash; Ultra Fine</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div style="margin-bottom:22px">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:12px;text-transform:uppercase;">Material</div>
+          <div class="matgrid">
+            <label class="matcard sel" onclick="selMat(this,'PLA',1.2)"><input type="radio" name="mat" value="PLA" checked><span class="mat-ic">&#x1F33F;</span><div class="mat-nm">PLA</div><div class="mat-ds">Standard</div><div class="mat-pr">R1.20/g</div></label>
+            <label class="matcard" onclick="selMat(this,'PETG',1.5)"><input type="radio" name="mat" value="PETG"><span class="mat-ic">&#x1F4A7;</span><div class="mat-nm">PETG</div><div class="mat-ds">Tough</div><div class="mat-pr">R1.50/g</div></label>
+            <label class="matcard" onclick="selMat(this,'ABS',1.4)"><input type="radio" name="mat" value="ABS"><span class="mat-ic">&#x1F527;</span><div class="mat-nm">ABS</div><div class="mat-ds">Heat Resist</div><div class="mat-pr">R1.40/g</div></label>
+            <label class="matcard" onclick="selMat(this,'TPU',1.8)"><input type="radio" name="mat" value="TPU"><span class="mat-ic">&#x1FAE7;</span><div class="mat-nm">TPU</div><div class="mat-ds">Flexible</div><div class="mat-pr">R1.80/g</div></label>
+            <label class="matcard" onclick="selMat(this,'Carbon',3.5)"><input type="radio" name="mat" value="Carbon"><span class="mat-ic">&#x26A1;</span><div class="mat-nm">CARBON</div><div class="mat-ds">Strong</div><div class="mat-pr">R3.50/g</div></label>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div style="margin-bottom:22px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;">Colour</div>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--white);">
+              <div class="toggle-wrap">
+                <input type="checkbox" id="multiCol" onchange="toggleMultiCol(this);calcPrice();" style="display:none;">
+                <div class="toggle-track" id="toggleTrack"><div class="toggle-thumb"></div></div>
+              </div>
+              MULTI-COLOUR <span style="color:var(--orange);margin-left:4px;">(+15%)</span>
+            </label>
+          </div>
+
+          <div id="singleColSection">
+            <div class="swrow">
+              <div class="sw sel" style="background:#f0f0f0" data-c="White"  onclick="selCol(this)"></div>
+              <div class="sw"     style="background:#151515" data-c="Black"  onclick="selCol(this)"></div>
+              <div class="sw"     style="background:#f97316" data-c="Orange" onclick="selCol(this)"></div>
+              <div class="sw"     style="background:#dc2626" data-c="Red"    onclick="selCol(this)"></div>
+              <div class="sw"     style="background:#2563eb" data-c="Blue"   onclick="selCol(this)"></div>
+              <div class="sw"     style="background:#16a34a" data-c="Green"  onclick="selCol(this)"></div>
+              <div class="sw"     style="background:#ca8a04" data-c="Yellow" onclick="selCol(this)"></div>
+              <div class="sw"     style="background:linear-gradient(135deg,#888,#eee)" data-c="Silver" onclick="selCol(this)"></div>
+              <div class="sw-custom" onclick="document.getElementById('cpick').click()">+</div>
+              <input type="color" id="cpick" style="opacity:0;position:absolute;pointer-events:none" onchange="custCol(this.value)">
+              <input type="hidden" id="s-col" value="White">
+            </div>
+          </div>
+
+          <div id="multiColSection" style="display:none;">
+            <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Select up to 4 colours for your AMS multi-colour print. Tap a slot to pick.</p>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+              <div class="mc-slot" id="mc0" onclick="pickMC(0)" style="background:#f0f0f0;" title="Colour 1">1</div>
+              <div class="mc-slot" id="mc1" onclick="pickMC(1)" style="background:#f97316;" title="Colour 2">2</div>
+              <div class="mc-slot" id="mc2" onclick="pickMC(2)" style="background:#151515;color:rgba(255,255,255,.7)" title="Colour 3">3</div>
+              <div class="mc-slot" id="mc3" onclick="pickMC(3)" style="background:#2563eb;color:rgba(255,255,255,.7)" title="Colour 4">4</div>
+              <input type="color" id="mcPicker" style="opacity:0;position:absolute;pointer-events:none;" onchange="applyMC(this.value)">
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:10px;">&#x2139;&#xFE0F; Bambu Lab AMS &mdash; up to 4 filament colours per print</div>
+          </div>
+        </div>
+
+        <div class="fld"><label>Notes / Requirements</label><textarea id="s-notes" placeholder="Infill %, finish, tolerances, supports&hellip;"></textarea></div>
+
+        <div class="pricebar">
+          <div>
+            <div class="prlbl">ESTIMATED STARTING PRICE</div>
+            <div class="prnote">R1.20/g &mdash; final quote via WhatsApp within 24hrs</div>
+          </div>
+          <div>
+            <div class="prval" id="priceVal">R &mdash;</div>
+            <div id="weightHint" style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:4px;text-align:right;"></div>
+          </div>
+        </div>
+
+        <button class="btn-finish" onclick="goStep(4)" ontouchend="event.preventDefault();goStep(4)" style="margin-top:20px;">
+          <span>REVIEW &amp; SUBMIT</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+        <div class="form-nav" style="margin-top:10px;"><button class="btn-back" onclick="goStep(2)" ontouchend="event.preventDefault();goStep(2)">&larr; BACK</button></div>
+      </div>
+
+      <!-- STEP 4: CONFIRM -->
+      <div class="panel" id="p4">
+        <div class="ptitle"><h2>Review &amp; <em>Submit</em></h2><p>Almost there &#x2699;&#xFE0F;</p></div>
+        <div style="background:#0d0d0d;border:1px solid var(--border);border-radius:4px;padding:24px;margin-bottom:20px;" id="summBox"></div>
+        <div class="fld"><label>Anything else?</label><textarea id="c-extra" placeholder="Urgency, delivery notes&hellip;"></textarea></div>
+        <button class="btn-submit" id="subBtn" onclick="submitOrder()" ontouchend="event.preventDefault();submitOrder()"><span>&#x1F5A8;&#xFE0F; SUBMIT PRINT REQUEST</span><div class="spin"></div></button>
+        <div class="form-nav" style="margin-top:14px;"><button class="btn-back" onclick="goStep(3)" ontouchend="event.preventDefault();goStep(3)">&larr; BACK</button><div></div></div>
+      </div>
+
+    </div><!-- fbody -->
+
+    <!-- SUCCESS -->
+    <div class="success-panel" id="succPanel">
+      <img src="gizmo.png" alt="Gizmo celebrating" class="gz gz-succ" style="margin-bottom:20px;">
+      <div class="succ-title">Order <em>Received!</em> &#x1F389;</div>
+      <p class="succ-sub">We&rsquo;ll WhatsApp <strong id="conf-phone"></strong> and email <strong id="conf-email"></strong> within 24 hours.</p>
+      <div class="succ-ref" id="conf-ref"></div>
+      <a id="waLink" href="#" target="_blank" class="wa-cta">&#x1F4AC; CHAT ON WHATSAPP</a>
+    </div>
+
+  </div><!-- form-card -->
+</section>
+</main>
+<footer><div class="foot-inner">
+  <p style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;">innovat3. &middot; 3D PRINT ON DEMAND &middot; SUPPORTING ID3AS</p>
+  <div class="social-links">
+    <a class="social-btn yt" href="https://www.youtube.com/@Innovat_3d" target="_blank">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.75 15.5v-7l6.25 3.5-6.25 3.5z"/></svg>
+      YouTube
+    </a>
+    <a class="social-btn fb" href="https://www.facebook.com/Innovat3dz/" target="_blank">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M24 12.07C24 5.41 18.63 0 12 0S0 5.41 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.04V9.41c0-3.02 1.8-4.7 4.54-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.88v2.27h3.32l-.53 3.49h-2.79V24C19.61 23.1 24 18.1 24 12.07z"/></svg>
+      Facebook
+    </a>
+    <a class="social-btn tt" href="https://www.tiktok.com/@innovat3s" target="_blank">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06z"/></svg>
+      TikTok
+    </a>
+    <a class="wa-foot" href="https://wa.me/27725883875" target="_blank">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M17.47 14.38c-.29-.14-1.7-.84-1.96-.94-.27-.1-.46-.14-.65.14-.2.28-.75.94-.92 1.13-.17.2-.34.22-.63.07a7.93 7.93 0 0 1-2.33-1.44 8.84 8.84 0 0 1-1.62-2.01c-.17-.29-.02-.45.13-.59.13-.13.29-.34.43-.5.15-.17.2-.29.29-.48.1-.2.05-.37-.02-.52-.07-.14-.65-1.57-.9-2.15-.23-.56-.47-.48-.65-.49l-.55-.01c-.19 0-.5.07-.77.36-.26.28-1 .98-1 2.4s1.02 2.78 1.17 2.97c.14.19 2.02 3.08 4.88 4.32.68.3 1.22.47 1.63.6.69.22 1.31.19 1.8.11.55-.08 1.7-.69 1.94-1.36.24-.67.24-1.24.17-1.36-.07-.12-.27-.19-.55-.33zM12 2a10 10 0 0 0-8.64 15.01L2 22l5.15-1.35A10 10 0 1 0 12 2z"/></svg>
+      WhatsApp
+    </a>
+  </div>
+</div></footer></body></html>
+
+<script>
+
+const GS='https://script.google.com/macros/s/YOUR_SCRIPT_ID_HERE/exec';
+const WA='27725883875';
+
+/* ── cursor ── */
+const cur=document.getElementById('cur'),curR=document.getElementById('curR');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px';});
+setInterval(()=>{rx+=(mx-rx)*.13;ry+=(my-ry)*.13;curR.style.left=rx+'px';curR.style.top=ry+'px';},16);
+document.querySelectorAll('button,a,label,.matcard,.sw,.upload,.gz').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{cur.style.width='18px';cur.style.height='18px';curR.style.opacity='.85';});
+  el.addEventListener('mouseleave',()=>{cur.style.width='12px';cur.style.height='12px';curR.style.opacity='.4';});
+});
+
+/* ── Gizmo click interactions ── */
+function gzClick(el,anim,dur){
+  const prev=el.style.animation;
+  el.style.animation=anim;
+  setTimeout(()=>{el.style.animation=prev;},dur||1100);
+}
+document.querySelectorAll('.gz').forEach(g=>{
+  g.addEventListener('click',function(){gzClick(this,'gz-spin 1s ease-in-out 1');});
+});
+/* Hero Gizmo: change speech on click */
+const heroGz=document.getElementById('heroGz');
+const bubble=document.getElementById('bubble');
+const msgs=['Let us make something awesome! ♥','Slow and steady wins the race 🐢','Gears go brrrr ⚙️','innovat3. — Supporting ID3AS!','Your idea, printed with precision!'];
+let mi=0;
+heroGz.addEventListener('click',function(){
+  gzClick(this,'gz-bounce .9s ease-in-out 1');
+  mi=(mi+1)%msgs.length;
+  bubble.querySelector('p').innerHTML=msgs[mi];
+});
+
+/* ── form logic ── */
+let step=1,files=[],matP=1.2,matN='PLA',colV='White';
+
+
+function goStep(n){
+  // read values immediately — no validation blocking on mobile
+  if(n===4) buildSumm();
+  step=n;
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('p'+n).classList.add('active');
+  document.getElementById('t'+n).classList.add('active');
+  document.getElementById('progFill').style.width=(n*25)+'%';
+  document.getElementById('formCard').scrollIntoView({behavior:'smooth',block:'start'});
+  saveState();
+}
+function handleFiles(fs){for(const f of fs)if(!files.find(x=>x.name===f.name))files.push(f);renderChips();saveState();}
+function renderChips(){document.getElementById('fileChips').innerHTML=files.map((f,i)=>`<div class="chip">&#x2B21; ${f.name} <small>(${(f.size/1024/1024).toFixed(1)}MB)</small><button onclick="rmFile(${i})">&times;</button></div>`).join('');}
+function rmFile(i){files.splice(i,1);renderChips();}
+const dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');handleFiles(e.dataTransfer.files);});
+function selMat(el,n,p){document.querySelectorAll('.matcard').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');matN=n;matP=p;calcPrice();}
+function selCol(el){document.querySelectorAll('.sw').forEach(s=>s.classList.remove('sel'));el.classList.add('sel');colV=el.dataset.c;document.getElementById('s-col').value=colV;}
+function custCol(h){document.querySelectorAll('.sw').forEach(s=>s.classList.remove('sel'));colV='Custom: '+h;document.getElementById('s-col').value=colV;}
+function calcPrice(){
+  const w=parseFloat(document.getElementById('s-w').value)||0;
+  const d=parseFloat(document.getElementById('s-d').value)||0;
+  const h=parseFloat(document.getElementById('s-h').value)||0;
+  const qty=parseInt(document.getElementById('s-qty').value)||1;
+  const res=document.getElementById('s-res').value;
+  const multiCol=document.getElementById('multiCol')&&document.getElementById('multiCol').checked;
+  if(!w||!d||!h){document.getElementById('priceVal').textContent='R \u2014';return;}
+  // density map g/cm³
+  const density={PLA:1.24,PETG:1.27,ABS:1.04,TPU:1.20,Carbon:1.30};
+  const dens=density[matN]||1.24;
+  // volume cm³ at 30% infill estimate
+  const vol_cm3=(w*d*h/1000)*0.30;
+  const weight_g=vol_cm3*dens;
+  // resolution multiplier
+  const resM2={draft:0.85,standard:1,fine:1.35,ultra:1.8};
+  // multi-colour surcharge 15%
+  const colMult=multiCol?1.15:1;
+  const unit_cost=Math.max(50, Math.round(weight_g*matP*(resM2[res]||1)*colMult+45));
+  const est=unit_cost*qty;
+  // show weight too
+  const wt=(weight_g*qty).toFixed(1);
+  document.getElementById('priceVal').textContent='R '+est.toLocaleString('en-ZA');
+  const wtEl=document.getElementById('weightHint');
+  if(wtEl) wtEl.textContent='~'+wt+'g estimated filament';
+}
+  const est=Math.max(150,Math.round((w*d*h/1e3)*matP*(resM[res]||1)*qty+80));
+  document.getElementById('priceVal').textContent='R '+est.toLocaleString('en-ZA');
+}
+function buildSumm(){
+  const rows=[['Name',document.getElementById('c-name').value],['Email',document.getElementById('c-email').value],['Phone',document.getElementById('c-phone').value],['Company',document.getElementById('c-company').value||'—'],['City',document.getElementById('c-city').value||'—'],['Files',files.length?files.map(f=>f.name).join(', '):(document.getElementById('c-idea').value||'—')],['W×D×H',`${document.getElementById('s-w').value||'?'} × ${document.getElementById('s-d').value||'?'} × ${document.getElementById('s-h').value||'?'} mm`],['Qty',document.getElementById('s-qty').value],['Resolution',document.getElementById('s-res').options[document.getElementById('s-res').selectedIndex].text],['Material',matN],['Colour',colV],['Link',document.getElementById('c-link')&&document.getElementById('c-link').value?document.getElementById('c-link').value:'None'],['Est. Price',document.getElementById('priceVal').textContent]];
+  document.getElementById('summBox').innerHTML=rows.map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);"><span style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">${k}</span><span style="font-size:14px;font-weight:600;max-width:58%;text-align:right;">${v}</span></div>`).join('');
+}
+async function submitOrder(){
+  const btn=document.getElementById('subBtn');btn.classList.add('loading');btn.disabled=true;
+  const ref='I3-'+Date.now().toString(36).toUpperCase();
+  const ts=new Date().toLocaleString('en-ZA',{timeZone:'Africa/Johannesburg'});
+  const p={ref,timestamp:ts,type:'3d_print_order',name:document.getElementById('c-name').value,email:document.getElementById('c-email').value,phone:document.getElementById('c-phone').value,company:document.getElementById('c-company').value,city:document.getElementById('c-city').value,files:files.map(f=>f.name).join(', ')||'None',idea:document.getElementById('c-idea').value,link:document.getElementById('c-link')?document.getElementById('c-link').value||'None':'None',width:document.getElementById('s-w').value||'—',depth:document.getElementById('s-d').value||'—',height:document.getElementById('s-h').value||'—',qty:document.getElementById('s-qty').value,resolution:document.getElementById('s-res').options[document.getElementById('s-res').selectedIndex].text,material:matN,colour:colV,multiColour:document.getElementById('multiCol')&&document.getElementById('multiCol').checked?'Yes (AMS)':'No',notes:document.getElementById('s-notes').value,finalNotes:document.getElementById('c-extra').value,priceEst:document.getElementById('priceVal').textContent};
+  const wm=encodeURIComponent('🖨 *NEW INNOVAT3 ORDER*\nRef: '+ref+'\n👤 '+p.name+' · '+p.phone+'\n💳 '+p.width+'×'+p.depth+'×'+p.height+'mm · '+p.qty+'x\n🧱 '+p.material+' · '+p.colour+'\n💰 '+p.priceEst+'\n📧 '+p.email);
+  try{await fetch(GS,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});}catch(e){}
+  document.getElementById('conf-phone').textContent=p.phone;
+  document.getElementById('conf-email').textContent=p.email;
+  document.getElementById('conf-ref').textContent='📋 Ref: '+ref;
+  document.getElementById('waLink').href='https://wa.me/'+WA+'?text='+wm;
+  document.querySelector('.ftabs').style.display='none';
+  document.querySelector('.fbody').style.display='none';
+  document.getElementById('succPanel').classList.add('show');
+  document.getElementById('progFill').style.width='100%';
+  btn.classList.remove('loading');btn.disabled=false;
+}
+
+
+
+
+/* ── Mobile camera / page restore fix ── */
+function saveState(){
+  try{
+    sessionStorage.setItem('i3_step', step);
+    sessionStorage.setItem('i3_name',  document.getElementById('c-name').value  || '');
+    sessionStorage.setItem('i3_email', document.getElementById('c-email').value || '');
+    sessionStorage.setItem('i3_phone', document.getElementById('c-phone').value || '');
+    sessionStorage.setItem('i3_company',document.getElementById('c-company').value||'');
+    sessionStorage.setItem('i3_city',  document.getElementById('c-city').value  || '');
+    sessionStorage.setItem('i3_idea',  document.getElementById('c-idea').value  || '');
+    sessionStorage.setItem('i3_notes', document.getElementById('s-notes').value || '');
+    sessionStorage.setItem('i3_mat',   matN);
+    sessionStorage.setItem('i3_matp',  matP);
+    sessionStorage.setItem('i3_col',   colV);
+    sessionStorage.setItem('i3_qty',   document.getElementById('s-qty').value   || '1');
+    sessionStorage.setItem('i3_w',     document.getElementById('s-w').value     || '');
+    sessionStorage.setItem('i3_d',     document.getElementById('s-d').value     || '');
+    sessionStorage.setItem('i3_h',     document.getElementById('s-h').value     || '');
+    sessionStorage.setItem('i3_res',   document.getElementById('s-res').value   || 'standard');
+    sessionStorage.setItem('i3_multicol', document.getElementById('multiCol')?document.getElementById('multiCol').checked:false);
+    sessionStorage.setItem('i3_link',  document.getElementById('c-link') ? document.getElementById('c-link').value || '' : '');
+    // save file names only (can't store File objects)
+    sessionStorage.setItem('i3_filenames', JSON.stringify(files.map(f=>f.name)));
+  }catch(e){}
+}
+
+function restoreState(){
+  try{
+    const savedStep = parseInt(sessionStorage.getItem('i3_step') || '1');
+    if(savedStep < 1 || savedStep > 4) return;
+
+    const set = (id, key) => {
+      const el = document.getElementById(id);
+      const val = sessionStorage.getItem(key);
+      if(el && val) el.value = val;
+    };
+
+    set('c-name',   'i3_name');
+    set('c-email',  'i3_email');
+    set('c-phone',  'i3_phone');
+    set('c-company','i3_company');
+    set('c-city',   'i3_city');
+    set('c-idea',   'i3_idea');
+    set('s-notes',  'i3_notes');
+    set('s-qty',    'i3_qty');
+    set('s-w',      'i3_w');
+    set('s-d',      'i3_d');
+    set('s-h',      'i3_h');
+    set('s-res',    'i3_res');
+    set('c-link',   'i3_link');
+
+    // restore material
+    const savedMat  = sessionStorage.getItem('i3_mat')  || 'PLA';
+    const savedMatP = parseFloat(sessionStorage.getItem('i3_matp') || '1.2');
+    matN = savedMat; matP = savedMatP;
+    document.querySelectorAll('.matcard').forEach(c=>c.classList.remove('sel'));
+    const matCards = document.querySelectorAll('.matcard');
+    matCards.forEach(c=>{ if(c.querySelector('input') && c.querySelector('input').value===savedMat) c.classList.add('sel'); });
+
+    // restore colour
+    const savedCol = sessionStorage.getItem('i3_col') || 'White';
+    colV = savedCol;
+    document.querySelectorAll('.sw').forEach(s=>{ if(s.dataset.c===savedCol) s.classList.add('sel'); else s.classList.remove('sel'); });
+
+    // show file names that were previously selected (as chips only - files need re-select)
+    const savedNames = JSON.parse(sessionStorage.getItem('i3_filenames') || '[]');
+    if(savedNames.length){
+      const chips = document.getElementById('fileChips');
+      chips.innerHTML = savedNames.map(n=>`<div class="chip" style="opacity:.6;">&#x2B21; ${n} <small>(re-select to attach)</small></div>`).join('');
+    }
+
+    calcPrice();
+
+    // jump back to the saved step
+    if(savedStep > 1) goStep(savedStep);
+
+  }catch(e){}
+}
+
+// Auto-save on any input change
+document.addEventListener('input', saveState);
+document.addEventListener('change', saveState);
+
+// Restore on page load
+window.addEventListener('DOMContentLoaded', restoreState);
+
+// Clear state after successful submit
+const _origSubmit = submitOrder;
+submitOrder = async function(){
+  await _origSubmit();
+  try{ sessionStorage.clear(); }catch(e){}
+};
+
+
+/* ── Print link handler ── */
+document.getElementById('c-link').addEventListener('input', function(){
+  const val = this.value.trim();
+  const preview = document.getElementById('linkPreview');
+  if(val && (val.startsWith('http://') || val.startsWith('https://'))){
+    preview.href = val;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
+  saveState();
+});
+
+
+/* ── Multi-colour toggle ── */
+let activeMCSlot = null;
+function toggleMultiCol(cb){
+  const track = document.getElementById('toggleTrack');
+  const single = document.getElementById('singleColSection');
+  const multi  = document.getElementById('multiColSection');
+  if(cb.checked){
+    track.classList.add('on');
+    single.style.display='none';
+    multi.style.display='block';
+  } else {
+    track.classList.remove('on');
+    single.style.display='block';
+    multi.style.display='none';
+  }
+}
+function pickMC(slot){
+  activeMCSlot = slot;
+  document.querySelectorAll('.mc-slot').forEach((s,i)=>s.classList.toggle('active',i===slot));
+  const picker = document.getElementById('mcPicker');
+  const current = document.getElementById('mc'+slot).style.background;
+  picker.click();
+}
+function applyMC(hex){
+  if(activeMCSlot===null) return;
+  const slot = document.getElementById('mc'+activeMCSlot);
+  slot.style.background = hex;
+  // update text colour contrast
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  slot.style.color = (r*0.299+g*0.587+b*0.114)>128 ? 'rgba(0,0,0,.5)' : 'rgba(255,255,255,.7)';
+}
+// Make toggle track clickable
+document.addEventListener('DOMContentLoaded',()=>{
+  const track = document.getElementById('toggleTrack');
+  if(track) track.addEventListener('click',()=>{
+    const cb = document.getElementById('multiCol');
+    cb.checked = !cb.checked;
+    toggleMultiCol(cb);
+    calcPrice();
+  });
+});
+
+
+</script>
+</html>
