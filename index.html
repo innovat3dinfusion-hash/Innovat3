@@ -345,6 +345,8 @@ footer p{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacin
 
 
 
+.btn-finish *{pointer-events:none;}
+.btn-back *{pointer-events:none;}
 </style>
 <body>
 <div id="cur"></div><div id="curR"></div>
@@ -624,27 +626,55 @@ let step=1,files=[],matP=1.2,matN='PLA',colV='White';
 
 
 // ── Touch-safe navigation via event delegation ──
-function handleTap(e){
-  // Step navigation
-  const stepBtn = e.target.closest('[data-step]');
-  if(stepBtn){ e.preventDefault(); goStep(parseInt(stepBtn.dataset.step)); return; }
+// Bind all interactive elements directly — most reliable on mobile
+function bindButtons(){
+  // Step nav buttons
+  document.querySelectorAll('[data-step]').forEach(function(btn){
+    btn.addEventListener('touchstart', function(e){
+      e.preventDefault();
+      goStep(parseInt(this.dataset.step));
+    }, {passive:false});
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      goStep(parseInt(this.dataset.step));
+    });
+  });
   // Submit
-  if(e.target.closest('[data-action="submit"]')){ e.preventDefault(); submitOrder(); return; }
-  // Multi-colour toggle
-  if(e.target.closest('[data-action="toggle-colour"]')){
-    e.preventDefault();
-    const cb = document.getElementById('multiCol');
-    cb.checked = !cb.checked;
-    toggleMultiCol(cb);
-    calcPrice();
-    return;
+  var subBtn = document.getElementById('subBtn');
+  if(subBtn){
+    subBtn.addEventListener('touchstart', function(e){ e.preventDefault(); submitOrder(); }, {passive:false});
+    subBtn.addEventListener('click', function(e){ e.preventDefault(); submitOrder(); });
   }
-  // MC colour slot picker
-  const mcSlot = e.target.closest('.mc-slot');
-  if(mcSlot){ e.preventDefault(); const idx=parseInt(mcSlot.id.replace('mc','')); pickMC(idx); return; }
+  // Multi-colour toggle
+  var toggleTrack = document.getElementById('toggleTrack');
+  if(toggleTrack){
+    toggleTrack.addEventListener('touchstart', function(e){
+      e.preventDefault();
+      var cb = document.getElementById('multiCol');
+      cb.checked = !cb.checked;
+      toggleMultiCol(cb);
+      calcPrice();
+    }, {passive:false});
+    toggleTrack.addEventListener('click', function(e){
+      e.preventDefault();
+      var cb = document.getElementById('multiCol');
+      cb.checked = !cb.checked;
+      toggleMultiCol(cb);
+      calcPrice();
+    });
+  }
+  // MC colour slots
+  document.querySelectorAll('.mc-slot').forEach(function(slot){
+    slot.addEventListener('touchstart', function(e){ e.preventDefault(); pickMC(parseInt(this.id.replace('mc',''))); }, {passive:false});
+    slot.addEventListener('click', function(e){ e.preventDefault(); pickMC(parseInt(this.id.replace('mc',''))); });
+  });
 }
-document.addEventListener('click', handleTap);
-document.addEventListener('touchend', handleTap, {passive:false});
+// Run on load
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', bindButtons);
+} else {
+  bindButtons();
+}
 
 function goStep(n){
   // read values immediately — no validation blocking on mobile
@@ -814,4 +844,37 @@ document.addEventListener('change', function(e){
 
 
 
-/* ── Multi-colo
+/* ── Multi-colour functions ── */
+function toggleMultiCol(cb){
+  const track  = document.getElementById('toggleTrack');
+  const single = document.getElementById('singleColSection');
+  const multi  = document.getElementById('multiColSection');
+  if(!track||!single||!multi) return;
+  if(cb.checked){
+    track.classList.add('on');
+    single.style.display = 'none';
+    multi.style.display  = 'block';
+  } else {
+    track.classList.remove('on');
+    single.style.display = 'block';
+    multi.style.display  = 'none';
+  }
+}
+
+let activeMCSlot = null;
+function pickMC(slot){
+  activeMCSlot = slot;
+  document.querySelectorAll('.mc-slot').forEach((s,i) => s.classList.toggle('active', i===slot));
+  document.getElementById('mcPicker').click();
+}
+function applyMC(hex){
+  if(activeMCSlot === null) return;
+  const slot = document.getElementById('mc'+activeMCSlot);
+  if(!slot) return;
+  slot.style.background = hex;
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  slot.style.color = (r*0.299+g*0.587+b*0.114)>128 ? 'rgba(0,0,0,.6)' : 'rgba(255,255,255,.8)';
+}
+
+</script>
+</html>
