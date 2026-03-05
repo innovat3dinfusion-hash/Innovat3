@@ -649,7 +649,7 @@ footer p{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacin
         <div class="pricebar">
           <div>
             <div class="prlbl">ESTIMATED STARTING PRICE</div>
-            <div class="prnote">R1.20/g &mdash; final quote via WhatsApp within 24hrs</div>
+            <div class="prnote" id="prnote">R1.20/g &mdash; final quote via WhatsApp within 24hrs</div>
           </div>
           <div>
             <div class="prval" id="priceVal">R &mdash;</div>
@@ -816,6 +816,8 @@ function calcPrice() {
   document.getElementById('priceVal').textContent = 'R ' + est.toLocaleString('en-ZA');
   var wtEl = document.getElementById('weightHint');
   if (wtEl) wtEl.textContent = '~' + (weight * qty).toFixed(1) + 'g estimated filament';
+  var pn = document.getElementById('prnote');
+  if (pn) pn.textContent = 'R' + matP.toFixed(2) + '/g — final quote via WhatsApp within 24hrs';
 }
 
 /* ─── Summary ────────────────────────────────────── */
@@ -999,6 +1001,15 @@ function bindAll() {
   /* file change for camera restore */
   var fi = document.getElementById('fi');
   if (fi) fi.addEventListener('change', function(){ saveState(); handleFiles(this.files); });
+  /* ── number inputs: fire calcPrice on every possible event ── */
+  ['s-w','s-d','s-h','s-qty'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(!el) return;
+    ['input','change','keyup'].forEach(function(ev){
+      el.addEventListener(ev, calcPrice);
+    });
+  });
+  document.getElementById('s-res').addEventListener('change', calcPrice);
   /* drag drop & link preview */
   initDragDrop();
   initLinkPreview();
