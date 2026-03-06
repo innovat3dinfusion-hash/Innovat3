@@ -672,7 +672,7 @@ footer p{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacin
         <div class="ptitle"><h2>Review &amp; <em>Submit</em></h2><p>Almost there &#x2699;&#xFE0F;</p></div>
         <div style="background:#0d0d0d;border:1px solid var(--border);border-radius:4px;padding:24px;margin-bottom:20px;" id="summBox"></div>
         <div class="fld"><label>Anything else?</label><textarea id="c-extra" placeholder="Urgency, delivery notes&hellip;"></textarea></div>
-        <button class="btn-submit" id="subBtn" data-action="submit" onclick="submitOrder()" ontouchend="event.preventDefault();submitOrder()"><span>&#x1F5A8;&#xFE0F; SUBMIT PRINT REQUEST</span><div class="spin"></div></button>
+        <button class="btn-submit" id="subBtn" data-action="submit"><span>&#x1F5A8;&#xFE0F; SUBMIT PRINT REQUEST</span><div class="spin"></div></button>
         <div class="form-nav" style="margin-top:14px;"><button class="btn-back" data-step="3">&larr; BACK</button><div></div></div>
       </div>
 
@@ -714,7 +714,7 @@ footer p{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacin
 </div></footer></body></html>
 
 <script>
-const GS = 'https://script.google.com/macros/s/AKfycbyi-pEMWcNxa0hRFbkAHhKEbiM7OQYsPY9HhFn36RMd4-9YVUVf9m1RNuxPhmnjodTVQg/exec';
+const GS = 'https://script.google.com/macros/s/AKfycbxUvz1QntbMK8-j_4nk2dHDMqz_XTiU-Fo_4ttZQJ12ZqNlhUB4dJXlZYCMnWultsHq5g/exec';
 const WA     = '27725883875';
 
 /* ─── State ─────────────────────────────────────── */
@@ -848,6 +848,9 @@ function buildSumm() {
 
 /* ─── Submit ─────────────────────────────────────── */
 function submitOrder() {
+  if (submitOrder._running) return;
+  submitOrder._running = true;
+  setTimeout(function(){ submitOrder._running = false; }, 5000);
   var ref  = 'I3-' + Date.now().toString(36).toUpperCase();
   var ts   = new Date().toLocaleString('en-ZA', {timeZone:'Africa/Johannesburg'});
   var mcEl = document.getElementById('multiCol');
@@ -883,7 +886,7 @@ function submitOrder() {
     var dbg = document.getElementById('gsDebug');
     try {
       if (dbg) { dbg.style.display='block'; dbg.textContent = 'Sending...'; }
-      // Build GET URL with individual params - GAS reads these 100% reliably
+      // Send order data via GET params
       var params = [
         'ref='        + encodeURIComponent(payload.ref||''),
         'ts='         + encodeURIComponent(payload.timestamp||''),
@@ -905,14 +908,20 @@ function submitOrder() {
         'multiColour='+ encodeURIComponent(payload.multiColour||''),
         'notes='      + encodeURIComponent(payload.notes||''),
         'finalNotes=' + encodeURIComponent(payload.finalNotes||''),
-        'priceEst='   + encodeURIComponent(payload.priceEst||'')
+        'priceEst='   + encodeURIComponent(payload.priceEst||''),
+        'imageName='  + encodeURIComponent(payload.imageName||'')
       ].join('&');
       var url = GS + '?' + params;
-      // Use image ping - zero CORS issues, fires and forgets
       var img = new Image();
       img.onload = function(){ if(dbg){ dbg.style.display='block'; dbg.textContent='Sent ✓'; } };
       img.onerror = function(){ if(dbg){ dbg.style.display='block'; dbg.textContent='Sent ✓'; } };
       img.src = url;
+
+      // Send image separately via POST if available
+      if (payload.imageBase64) {
+        var imgData = JSON.stringify({ ref: payload.ref, imageBase64: payload.imageBase64, imageName: payload.imageName||'reference.jpg' });
+        fetch(GS, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body: imgData });
+      }
     } catch(ex) {
       if (dbg) { dbg.style.display='block'; dbg.textContent = 'Error: ' + ex.message; }
     }
@@ -1118,18 +1127,5 @@ if (document.readyState === 'loading') {
   bindAll(); initCursor(); initGizmo();
 }
 
-// Ultimate fallback: event delegation on document for submit button
-document.addEventListener('click', function(e) {
-  if (e.target && (e.target.id === 'subBtn' || e.target.closest('#subBtn'))) {
-    e.preventDefault();
-    submitOrder();
-  }
-});
-document.addEventListener('touchend', function(e) {
-  if (e.target && (e.target.id === 'subBtn' || e.target.closest('#subBtn'))) {
-    e.preventDefault();
-    submitOrder();
-  }
-}, { passive: false });
 </script>
 </html>
