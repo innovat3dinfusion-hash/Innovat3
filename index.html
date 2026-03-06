@@ -843,53 +843,60 @@ function buildSumm() {
 }
 
 /* ─── Submit ─────────────────────────────────────── */
-async function submitOrder() {
-  var btn = document.getElementById('subBtn');
-  btn.classList.add('loading'); btn.disabled = true;
-  var ref = 'I3-' + Date.now().toString(36).toUpperCase();
-  var ts  = new Date().toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg' });
-  var lnkEl = document.getElementById('c-link');
-  var mcEl  = document.getElementById('multiCol');
+function submitOrder() {
+  var ref  = 'I3-' + Date.now().toString(36).toUpperCase();
+  var ts   = new Date().toLocaleString('en-ZA', {timeZone:'Africa/Johannesburg'});
+  var mcEl = document.getElementById('multiCol');
+  var lnkEl= document.getElementById('c-link');
+  var resEl= document.getElementById('s-res');
+
   var p = {
-    ref:ref, timestamp:ts, type:'3d_print_order',
-    name:     document.getElementById('c-name').value,
-    email:    document.getElementById('c-email').value,
-    phone:    document.getElementById('c-phone').value,
-    company:  document.getElementById('c-company').value,
-    city:     document.getElementById('c-city').value,
-    files:    files.map(function(f){ return f.name; }).join(', ') || 'None',
-    idea:     document.getElementById('c-idea').value,
-    link:     lnkEl ? lnkEl.value || 'None' : 'None',
-    width:    document.getElementById('s-w').value || '\u2014',
-    depth:    document.getElementById('s-d').value || '\u2014',
-    height:   document.getElementById('s-h').value || '\u2014',
-    qty:      document.getElementById('s-qty').value,
-    resolution: document.getElementById('s-res').options[document.getElementById('s-res').selectedIndex].text,
-    material: matN, colour: colV,
+    ref:        ref,
+    timestamp:  ts,
+    name:       (document.getElementById('c-name')    ||{value:''}).value,
+    email:      (document.getElementById('c-email')   ||{value:''}).value,
+    phone:      (document.getElementById('c-phone')   ||{value:''}).value,
+    company:    (document.getElementById('c-company') ||{value:''}).value,
+    city:       (document.getElementById('c-city')    ||{value:''}).value,
+    files:      (typeof files!=='undefined' ? files.map(function(f){return f.name;}).join(', ') : '')||'None',
+    idea:       (document.getElementById('c-idea')    ||{value:''}).value,
+    link:       lnkEl ? lnkEl.value||'None' : 'None',
+    width:      (document.getElementById('s-w')       ||{value:'-'}).value||'-',
+    depth:      (document.getElementById('s-d')       ||{value:'-'}).value||'-',
+    height:     (document.getElementById('s-h')       ||{value:'-'}).value||'-',
+    qty:        (document.getElementById('s-qty')     ||{value:'1'}).value,
+    resolution: resEl ? resEl.options[resEl.selectedIndex].text : '',
+    material:   (typeof matN!=='undefined' ? matN : 'PLA'),
+    colour:     (typeof colV!=='undefined' ? colV : 'White'),
     multiColour: mcEl && mcEl.checked ? 'Yes (AMS)' : 'No',
-    notes:    document.getElementById('s-notes').value,
-    finalNotes: document.getElementById('c-extra').value,
-    priceEst: document.getElementById('priceVal').textContent
+    notes:      (document.getElementById('s-notes')   ||{value:''}).value,
+    finalNotes: (document.getElementById('c-extra')   ||{value:''}).value,
+    priceEst:   (document.getElementById('priceVal')  ||{textContent:''}).textContent
   };
-  var wm = encodeURIComponent('\uD83D\uDDA8 *NEW INNOVAT3 ORDER*\nRef: ' + ref + '\n\uD83D\uDC64 ' + p.name + ' \u00b7 ' + p.phone + '\n\uD83E\uDDF1 ' + p.material + ' \u00b7 ' + p.colour + '\n\uD83D\uDCB0 ' + p.priceEst + '\n\uD83D\uDCE7 ' + p.email);
-  // Send to Google Sheets via GET request with payload in URL (proven to work)
+
+  // Send to Google Sheets via GET with payload
   try {
-    var gsUrl = GS + '?payload=' + encodeURIComponent(JSON.stringify(p));
     var img = new Image();
-    img.src = gsUrl;
+    img.src = GS + '?payload=' + encodeURIComponent(JSON.stringify(p));
   } catch(e) {}
 
-  document.getElementById('conf-phone').textContent = p.phone;
-  document.getElementById('conf-email').textContent = p.email;
-  document.getElementById('conf-ref').textContent   = '\uD83D\uDCCB Ref: ' + ref;
-  document.getElementById('waLink').href = 'https://wa.me/' + WA + '?text=' + wm;
-  // Show success panel overlaying the form-card (position:absolute)
-  document.getElementById('succPanel').classList.add('show');
-  document.getElementById('progFill').style.width = '100%';
+  // Populate success screen
+  var confPhone = document.getElementById('conf-phone');
+  var confEmail = document.getElementById('conf-email');
+  var confRef   = document.getElementById('conf-ref');
+  var waLink    = document.getElementById('waLink');
+  if (confPhone) confPhone.textContent = p.phone;
+  if (confEmail) confEmail.textContent = p.email;
+  if (confRef)   confRef.textContent   = 'Ref: ' + ref;
+  if (waLink)    waLink.href = 'https://wa.me/' + WA + '?text=' + encodeURIComponent('New innovat3 order - Ref: ' + ref + ' - ' + p.name + ' - ' + p.phone);
+
+  // Show full-screen success overlay
+  var sp = document.getElementById('succPanel');
+  if (sp) sp.classList.add('show');
+  var pf = document.getElementById('progFill');
+  if (pf) pf.style.width = '100%';
+  window.scrollTo({top:0, behavior:'smooth'});
   try { sessionStorage.clear(); } catch(e) {}
-  btn.classList.remove('loading'); btn.disabled = false;
-  // Fixed overlay covers full screen — scroll to top so it's fully visible
-  setTimeout(function(){ window.scrollTo({top:0, behavior:'smooth'}); }, 100);
 }
 
 /* ─── Session restore (camera reload) ───────────── */
