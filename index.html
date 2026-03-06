@@ -687,6 +687,7 @@ footer p{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacin
       <div class="succ-title">Order <em>Received!</em> &#x1F389;</div>
       <p class="succ-sub">We&rsquo;ll WhatsApp <strong id="conf-phone"></strong> and email <strong id="conf-email"></strong> within 24 hours.</p>
       <div class="succ-ref" id="conf-ref"></div>
+      <div id="gsDebug" style="display:none;margin:10px auto;padding:8px 12px;background:#1a1a1a;border:1px solid #f97316;border-radius:4px;font-family:monospace;font-size:11px;color:#f97316;word-break:break-all;max-width:320px;"></div>
       <a id="waLink" href="#" target="_blank" class="wa-cta">&#x1F4AC; CHAT ON WHATSAPP</a>
     </div>
 
@@ -713,7 +714,8 @@ footer p{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacin
       WhatsApp
     </a>
   </div>
-</div></footer></body></html>
+</div></footer><iframe id="gsFrame" name="gsFrame" style="display:none;"></iframe>
+</body></html>
 
 <script>
 const GS = 'https://script.google.com/macros/s/AKfycbxF82jfisnNoXH3xAIi9-dtxKC4y6kitBBnK1hMw2QfAUJIJCnBt8Yk9Ix6pnXSTI6A/exec';
@@ -884,20 +886,26 @@ function submitOrder() {
   function sendToGS(payload) {
     var dbg = document.getElementById('gsDebug');
     try {
-      // Send as form-encoded POST - GAS reads as e.parameter.payload reliably
-      var body = 'payload=' + encodeURIComponent(JSON.stringify(payload));
-      fetch(GS, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        mode: 'no-cors',
-        body: body
-      }).then(function() {
-        if (dbg) { dbg.style.display='block'; dbg.textContent = 'GS: sent OK'; }
-      }).catch(function(err) {
-        if (dbg) { dbg.style.display='block'; dbg.textContent = 'GS error: ' + err.message; }
-      });
-    } catch(e) {
-      if (dbg) { dbg.style.display='block'; dbg.textContent = 'GS exception: ' + e.message; }
+      if (dbg) { dbg.style.display='block'; dbg.textContent = 'Sending order...'; }
+      // Hidden form POST - bypasses CORS, GAS reads as e.parameter.payload
+      var f = document.createElement('form');
+      f.method = 'POST';
+      f.action = GS;
+      f.target = 'gsFrame';
+      f.style.display = 'none';
+      var inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = 'payload';
+      inp.value = JSON.stringify(payload);
+      f.appendChild(inp);
+      document.body.appendChild(f);
+      f.submit();
+      setTimeout(function(){ 
+        document.body.removeChild(f);
+        if (dbg) { dbg.style.display='block'; dbg.textContent = 'Order sent to server ✓'; }
+      }, 2000);
+    } catch(ex) {
+      if (dbg) { dbg.style.display='block'; dbg.textContent = 'Error: ' + ex.message; }
     }
   }
 
