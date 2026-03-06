@@ -716,7 +716,7 @@ footer p{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacin
 </div></footer></body></html>
 
 <script>
-const GS = 'https://script.google.com/macros/s/AKfycbxmIJeab-Bdu5foz4ax-oyoDtwopTWfbCpfsw_fX24kg00xTH0NESAfySaQL2vLOKg/exec';
+const GS = 'https://script.google.com/macros/s/AKfycbwyMxzYECPkqLwwiXN6AuLeEJ3lRC7Lyg1uXfEiBoSv7U3oP6GyW-RVqGcTStRpCoXG/exec';
 const WA     = '27725883875';
 
 /* ─── State ─────────────────────────────────────── */
@@ -882,23 +882,31 @@ function submitOrder() {
 
   // Encode first image as base64 if available, then send to GS
   function sendToGS(payload) {
+    var dbg = document.getElementById('gsDebug');
     try {
-      var url = GS + '?payload=' + encodeURIComponent(JSON.stringify(payload));
-      // Debug: show what URL is being called
-      var dbg = document.getElementById('gsDebug');
-      if (dbg) {
-        dbg.style.display = 'block';
-        dbg.textContent = 'Sending to: ' + url.slice(0, 80) + '...';
-      }
-      // Method 1: Image ping (fire and forget)
-      var imgEl = new Image();
-      imgEl.onload = function() { if(dbg) dbg.textContent = 'GS: SUCCESS'; };
-      imgEl.onerror = function() { if(dbg) dbg.textContent = 'GS: ERROR (image ping failed)'; };
-      imgEl.src = url;
-      // Method 2: fetch as backup
-      fetch(url, {mode:'no-cors'}).catch(function(){});
+      // Use fetch POST - no URL length limit, most reliable
+      fetch(GS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(payload)
+      }).then(function() {
+        if (dbg) { dbg.style.display='block'; dbg.textContent = 'GS: sent OK'; }
+      }).catch(function(err) {
+        // POST blocked by CORS on some networks - fall back to GET with short payload
+        if (dbg) { dbg.style.display='block'; dbg.textContent = 'POST failed, trying GET...'; }
+        var slim = { ref: payload.ref, timestamp: payload.timestamp,
+          name: payload.name, email: payload.email, phone: payload.phone,
+          width: payload.width, depth: payload.depth, height: payload.height,
+          qty: payload.qty, material: payload.material, colour: payload.colour,
+          priceEst: payload.priceEst, multiColour: payload.multiColour,
+          resolution: payload.resolution, city: payload.city,
+          files: payload.files, link: payload.link };
+        var img = new Image();
+        img.onload = function(){ if(dbg){ dbg.style.display='block'; dbg.textContent='GS: GET sent OK'; } };
+        img.onerror = function(){ if(dbg){ dbg.style.display='block'; dbg.textContent='GS: both methods failed'; } };
+        img.src = GS + '?payload=' + encodeURIComponent(JSON.stringify(slim));
+      });
     } catch(e) {
-      var dbg = document.getElementById('gsDebug');
       if (dbg) { dbg.style.display='block'; dbg.textContent = 'GS exception: ' + e.message; }
     }
   }
