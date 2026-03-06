@@ -460,6 +460,10 @@ footer p{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacin
 .mc-slot input[type="color"]{touch-action:manipulation;}
 </style>
 <body>
+<!-- TEMP DEBUG: floating test trigger - remove after testing -->
+<div id="debugTrigger" style="position:fixed;bottom:20px;right:20px;z-index:9999;background:#f97316;color:#000;padding:12px 16px;border-radius:50px;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 20px rgba(249,115,22,.5);" onclick="document.getElementById('c-name').value=document.getElementById('c-name').value||'Debug Test';document.getElementById('c-email').value=document.getElementById('c-email').value||'debug@innovat3.co.za';document.getElementById('c-phone').value=document.getElementById('c-phone').value||'+27821234567';document.getElementById('s-w').value='80';document.getElementById('s-d').value='60';document.getElementById('s-h').value='40';if(typeof calcPrice==='function')calcPrice();submitOrder();">
+  🧪 TEST SUBMIT
+</div>
 <div id="cur"></div><div id="curR"></div>
 <div class="bg-grid"></div>
 <div class="brk tl"></div><div class="brk tr"></div><div class="brk bl"></div><div class="brk br"></div>
@@ -671,7 +675,7 @@ footer p{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacin
         <div class="ptitle"><h2>Review &amp; <em>Submit</em></h2><p>Almost there &#x2699;&#xFE0F;</p></div>
         <div style="background:#0d0d0d;border:1px solid var(--border);border-radius:4px;padding:24px;margin-bottom:20px;" id="summBox"></div>
         <div class="fld"><label>Anything else?</label><textarea id="c-extra" placeholder="Urgency, delivery notes&hellip;"></textarea></div>
-        <button class="btn-submit" id="subBtn" data-action="submit"><span>&#x1F5A8;&#xFE0F; SUBMIT PRINT REQUEST</span><div class="spin"></div></button>
+        <button class="btn-submit" id="subBtn" data-action="submit" onclick="submitOrder()" ontouchend="event.preventDefault();submitOrder()"><span>&#x1F5A8;&#xFE0F; SUBMIT PRINT REQUEST</span><div class="spin"></div></button>
         <div class="form-nav" style="margin-top:14px;"><button class="btn-back" data-step="3">&larr; BACK</button><div></div></div>
       </div>
 
@@ -1098,5 +1102,19 @@ if (document.readyState === 'loading') {
 } else {
   bindAll(); initCursor(); initGizmo();
 }
+
+// Ultimate fallback: event delegation on document for submit button
+document.addEventListener('click', function(e) {
+  if (e.target && (e.target.id === 'subBtn' || e.target.closest('#subBtn'))) {
+    e.preventDefault();
+    submitOrder();
+  }
+});
+document.addEventListener('touchend', function(e) {
+  if (e.target && (e.target.id === 'subBtn' || e.target.closest('#subBtn'))) {
+    e.preventDefault();
+    submitOrder();
+  }
+}, { passive: false });
 </script>
 </html>
